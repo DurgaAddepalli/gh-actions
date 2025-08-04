@@ -4,12 +4,12 @@ This repository contains a collection of production-ready automation scripts des
 
 ## **Table of Contents**
 
-1. [Task](https://www.google.com/search?q=%23task-1-python-file-copy-utility-copy_if_neededpy) 1: Python File Copy Utility (copy\_if\_needed.py)  
+1. [Task 1: Python File Copy Utility (copy\_if\_needed.py)](https://www.google.com/search?q=%23task-1-python-file-copy-utility-copy_if_neededpy)  
    * [Purpose](https://www.google.com/search?q=%23purpose)  
    * [Prerequisites](https://www.google.com/search?q=%23prerequisites)  
    * [Usage](https://www.google.com/search?q=%23usage)  
    * [How It Works](https://www.google.com/search?q=%23how-it-works)  
-2. [Task 2: GitHub Actions PR Email Notifier](https://www.google.com/search?q=%23task-2-github-actions-pr-email-notifier)  
+2. [Task 2: GitHub Actions PR Merged Notifier](https://www.google.com/search?q=%23task-2-github-actions-pr-merged-notifier)  
    * [Purpose](https://www.google.com/search?q=%23purpose-1)  
    * [Setup and Configuration](https://www.google.com/search?q=%23setup-and-configuration)  
    * [How to Customize](https://www.google.com/search?q=%23how-to-customize)
@@ -42,31 +42,13 @@ echo '{"status": "ok"}' \> ./data/report.json
 \# Run the script  
 python copy\_if\_needed.py ./data/report.json ./output/reports/
 
-**Expected Output:**
+## **Task 2: GitHub Actions PR Merged Notifier**
 
-📁 Target directory not found. Creating missing directory: 'output/reports'  
-📄 Copied 'report.json' to 'output/reports'
-
-If you run it again, the output will be:
-
-✅ Directory already exists: 'output/reports'  
-📄 Copied 'report.json' to 'output/reports'
-
-### **How It Works**
-
-1. **Argument Parsing**: It uses argparse to accept two required arguments: source\_file and target\_dir.  
-2. **Source File Validation**: It first checks if the source\_file actually exists. If not, it prints an error and exits.  
-3. **Directory Check**: It uses pathlib.Path to check if the target\_dir exists and is a directory.  
-4. **Directory Creation**: If the directory is missing, it creates it using pathlib.Path.mkdir(parents=True, exist\_ok=True). The parents=True flag ensures that all parent folders in the path are also created (similar to the mkdir \-p command in Linux).  
-5. **File Copy**: Finally, it uses shutil.copy() to copy the file from the source to the target destination.
-
-## **Task 2: GitHub Actions PR Email Notifier**
-
-A GitHub Actions workflow (.github/workflows/pr-notify.yml) that automatically sends an email notification when a pull request is opened against a specific branch.
+A GitHub Actions workflow (.github/workflows/pr-merged-notify.yml) that automatically sends an email notification when a pull request is **successfully merged** into a specific branch.
 
 ### **Purpose**
 
-This workflow keeps stakeholders informed about new development work in real-time. It's particularly useful for private repositories where team leads, QA engineers, or project managers need immediate notification of pending changes.
+This workflow keeps stakeholders informed about successfully integrated code changes. It provides a clear signal that a feature or fix has been incorporated into a key branch like develop or main, which is crucial for coordinating testing, deployment, or further development efforts.
 
 ### **Setup and Configuration**
 
@@ -88,11 +70,11 @@ To enable this workflow, you must configure secrets in your GitHub repository.
 
 ### **How to Customize**
 
-* **Change the Monitored Branch**: To monitor a branch other than develop (e.g., main), edit the if condition in the .github/workflows/pr-notify.yml file:  
+* **Change the Monitored Branch**: To monitor a branch other than develop (e.g., main), edit the if condition in the .github/workflows/pr-merged-notify.yml file:  
   \# From  
-  if: github.base\_ref \== 'develop'  
+  if: github.base\_ref \== 'develop' && github.event.pull\_request.merged \== true  
   \# To  
-  if: github.base\_ref \== 'main'
+  if: github.base\_ref \== 'main' && github.event.pull\_request.merged \== true
 
 * **Update the Recipient Email**: To change who receives the notification, simply update the EMAIL\_TO secret in your repository settings. No code changes are required.  
-* **Modify** Email **Content**: The email body is defined as HTML within the workflow file. You can edit the html\_body section to add or remove information. All PR details are available through the github.event.pull\_request context object.
+* **Modify Email Content**: The email body is defined as HTML within the workflow file. You can edit the html\_body section to add or remove information. All PR details are available through the github.event.pull\_request context object.
