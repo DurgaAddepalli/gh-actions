@@ -1,0 +1,89 @@
+# .github/workflows/pr-merged-notify.yml
+
+# ==============================================================================
+# DOCUMENTATION & SETUP
+# ==============================================================================
+#
+# This workflow sends an email notification when a Pull Request (PR) is
+# successfully MERGED into the 'develop' branch.
+#
+# --- SETUP INSTRUCTIONS ---
+#
+# 1. ADD GITHUB SECRETS:
+#    Go to your repository's Settings > Secrets and variables > Actions.
+#    Click "New repository secret" and add the following secrets:
+#
+#    - SMTP_SERVER:   Hostname of your SMTP server (e.g., smtp.example.com)
+#    - SMTP_PORT:     Port for the SMTP server (e.g., 587 or 465)
+#    - SMTP_USERNAME: Username for SMTP authentication.
+#    - SMTP_PASSWORD: Password or App-specific password for the SMTP user.
+#    - EMAIL_FROM:    The "From" email address (e.g., "CI/CD Notifier <no-reply@example.com>")
+#    - EMAIL_TO:      The recipient's email address.
+#
+# 2. CHANGE THE MONITORED BRANCH:
+#    To monitor a different branch (e.g., 'main'), change the value in the
+#    'if' condition below from 'develop' to 'main'.
+#
+# ==============================================================================
+
+name: 'PR Merged Notification'
+
+# --- 1. TRIGGER DEFINITION ---
+# This workflow runs ONLY when a pull request is closed.
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  send-pr-merged-notification:
+    # --- 2. EXECUTION CONDITIONS ---
+    # This job only runs if:
+    #   a) The PR's target branch was 'develop'.
+    #   b) The PR's state is 'merged' (not just closed).
+    if: github.base_ref == 'develop' && github.event.pull_request.merged == true
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+
+      - name: 'Send Email Notification'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # --- 3. SMTP SERVER CONFIGURATION ---
+          # All credentials and server details are loaded securely from GitHub Secrets.
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          
+          # --- 4. EMAIL CONTENT ---
+          # The subject line now indicates a successful merge.
+          subject: "✅ PR Merged to ${{ github.base_ref }}: ${{ github.event.pull_request.title }}"
+          
+          from: ${{ secrets.EMAIL_FROM }}
+          to: ${{ secrets.EMAIL_TO }}
+          
+          # The HTML body is updated to reflect the merge event.
+          html_body: |
+            <h3>✅ Pull Request Merged</h3>
+            <p>A pull request has been successfully merged into the <strong>${{ github.base_ref }}</strong> branch in the <strong>${{ github.repository }}</strong> repository.</p>
+            <hr>
+            <ul>
+              <li><strong>Title:</strong> ${{ github.event.pull_request.title }}</li>
+              <li><strong>Author:</strong> ${{ github.event.pull_request.user.login }}</li>
+              <li><strong>Merged by:</strong> ${{ github.event.pull_request.merged_by.login }}</li>
+              <li><strong>PR Number:</strong> #${{ github.event.pull_request.number }}</li>
+            </ul>
+            <p>
+              You can view the merged pull request here:
+            </p>
+            <p style="text-align: center;">
+              <a 
+                href="${{ github.event.pull_request.html_url }}" 
+                style="background-color: #6f42c1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;"
+              >
+                View Merged PR
+              </a>
+            </p>
