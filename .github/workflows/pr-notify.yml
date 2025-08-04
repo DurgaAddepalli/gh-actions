@@ -1,0 +1,97 @@
+# .github/workflows/pr-notify.yml
+
+# ==============================================================================
+# DOCUMENTATION & SETUP
+# ==============================================================================
+#
+# This workflow sends an email notification when a new Pull Request (PR) is
+# opened that targets the 'develop' branch.
+#
+# --- SETUP INSTRUCTIONS ---
+#
+# 1. ADD GITHUB SECRETS:
+#    Go to your repository's Settings > Secrets and variables > Actions.
+#    Click "New repository secret" and add the following secrets:
+#
+#    - SMTP_SERVER:   Hostname of your SMTP server (e.g., smtp.example.com)
+#    - SMTP_PORT:     Port for the SMTP server (e.g., 587 or 465)
+#    - SMTP_USERNAME: Username for SMTP authentication.
+#    - SMTP_PASSWORD: Password or App-specific password for the SMTP user.
+#    - EMAIL_FROM:    The "From" email address (e.g., "CI/CD Notifier <no-reply@example.com>")
+#    - EMAIL_TO:      The recipient's email address.
+#
+# 2. CHANGE THE MONITORED BRANCH:
+#    To monitor a different branch (e.g., 'main'), change the value in the
+#    'if' condition below from 'develop' to 'main'.
+#
+# 3. UPDATE RECIPIENT EMAIL:
+#    To change who receives the email, update the EMAIL_TO secret in your
+#    repository settings. No code changes are needed.
+#
+# ==============================================================================
+
+name: 'PR Email Notification'
+
+# --- 1. TRIGGER DEFINITION ---
+# This workflow runs ONLY when a pull request is opened.
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  send-pr-notification:
+    # --- 2. BRANCH FILTER ---
+    # This condition ensures the job only runs if the PR's target branch is 'develop'.
+    if: github.base_ref == 'develop'
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+        # Although we don't use the repo files directly, this is good practice.
+
+      - name: 'Send Email Notification'
+        # Using a popular, well-maintained action for sending SMTP mail.
+        # This avoids scripting our own mail client and is more secure.
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # --- 3. SMTP SERVER CONFIGURATION ---
+          # All credentials and server details are loaded securely from GitHub Secrets.
+          # DO NOT hard-code credentials here.
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          
+          # --- 4. EMAIL CONTENT ---
+          # The subject line dynamically includes the PR title.
+          subject: "New PR for ${{ github.repository }}: ${{ github.event.pull_request.title }}"
+          
+          # The "From" and "To" addresses are also loaded from secrets.
+          from: ${{ secrets.EMAIL_FROM }}
+          to: ${{ secrets.EMAIL_TO }}
+          
+          # Using the 'html_body' field for a richer, more readable email format.
+          # The content is dynamically populated using the GitHub context object.
+          html_body: |
+            <h3>📬 New Pull Request Opened</h3>
+            <p>A new pull request has been opened in the <strong>${{ github.repository }}</strong> repository targeting the <strong>${{ github.base_ref }}</strong> branch.</p>
+            <hr>
+            <ul>
+              <li><strong>Title:</strong> ${{ github.event.pull_request.title }}</li>
+              <li><strong>Author:</strong> ${{ github.event.pull_request.user.login }}</li>
+              <li><strong>PR Number:</strong> #${{ github.event.pull_request.number }}</li>
+            </ul>
+            <p>
+              You can review the changes and comment on the pull request here:
+            </p>
+            <p style="text-align: center;">
+              <a 
+                href="${{ github.event.pull_request.html_url }}" 
+                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;"
+              >
+                View Pull Request
+              </a>
+            </p>
+
