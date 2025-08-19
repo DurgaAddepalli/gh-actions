@@ -1,0 +1,147 @@
+Sure! Here's a complete end-to-end guide on how to get Microsoft Teams notifications when a GitHub pull request is merged, using only shell scripting + GitHub API + Microsoft Teams Webhook, with no servers or frameworks needed.
+
+🎯 GOAL
+
+Set up a shell script (runs via cron) that checks for newly merged pull requests on a GitHub repo and sends a message to a Microsoft Teams channel.
+
+🧰 What You Need
+
+✅ A GitHub personal access token (PAT)
+
+✅ A Microsoft Teams webhook URL
+
+✅ Access to a machine with bash, cron, curl, jq
+
+✅ (Optional) GitHub repo access if it's private
+
+🪝 Step 1: Create Microsoft Teams Incoming Webhook
+
+In Teams, go to the channel you want to post to.
+
+Click on "⋯" > Connectors
+
+Add "Incoming Webhook"
+
+Name it something like PR Merged Notifier
+
+Copy the webhook URL — save it somewhere.
+
+🔑 Step 2: Generate a GitHub Personal Access Token (PAT)
+
+Visit https://github.com/settings/tokens
+
+Click "Generate new token (classic)"
+
+Scopes:
+
+✅ repo (for private repos)
+
+✅ public_repo (for public repos)
+
+Click Generate token and copy the token securely.
+
+📜 Step 3: Create the Shell Script
+
+Save this as github-pr-merged-teams.sh
+
+#!/bin/bash
+
+# ========== CONFIGURATION ==========
+GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxx"       # Your GitHub PAT
+REPO="your-username/your-repo"                 # Format: owner/repo
+TEAMS_WEBHOOK_URL="https://outlook.office.com/webhook/..."  # From Teams
+LAST_CHECK_FILE="/tmp/last_pr_check.txt"       # Local file to track last check time
+TMP_JSON="/tmp/merged_prs.json"
+
+# ========== GET LAST CHECK TIME ==========
+if [ -f "$LAST_CHECK_FILE" ]; then
+    SINCE=$(cat "$LAST_CHECK_FILE")
+else
+    SINCE=$(date -u -d "15 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
+fi
+
+NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# ========== FETCH RECENT CLOSED PRs ==========
+curl -s -H "Authorization: token $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=30" \
+  -o "$TMP_JSON"
+
+# ========== FILTER MERGED PRs SINCE LAST TIME ==========
+jq -c ".[] | select(.merged_at != null and .merged_at > \"$SINCE\")" "$TMP_JSON" | while read -r pr; do
+    TITLE=$(echo "$pr" | jq -r '.title')
+    NUMBER=$(echo "$pr" | jq -r '.number')
+    URL=$(echo "$pr" | jq -r '.html_url')
+    AUTHOR=$(echo "$pr" | jq -r '.user.login')
+    MERGED_BY=$(echo "$pr" | jq -r '.merged_by.login')
+    MERGED_AT=$(echo "$pr" | jq -r '.merged_at')
+
+    # ========== BUILD TEAMS MESSAGE ==========
+    PAYLOAD=$(cat <<EOF
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "summary": "Pull Request Merged",
+  "themeColor": "0076D7",
+  "title": "🔀 PR Merged: #$NUMBER - $TITLE",
+  "sections": [{
+    "activityTitle": "PR [#$NUMBER]($URL) merged by $MERGED_BY",
+    "facts": [
+      { "name": "Repository", "value": "$REPO" },
+      { "name": "Author", "value": "$AUTHOR" },
+      { "name": "Merged At", "value": "$MERGED_AT" }
+    ],
+    "markdown": true
+  }]
+}
+EOF
+)
+
+    # ========== SEND TO TEAMS ==========
+    curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$TEAMS_WEBHOOK_URL"
+done
+
+# ========== UPDATE LAST CHECK TIME ==========
+echo "$NOW" > "$LAST_CHECK_FILE"
+
+🔒 Step 4: Set Permissions
+
+Make the script executable:
+
+chmod +x github-pr-merged-teams.sh
+
+⏰ Step 5: Schedule with Cron (Optional)
+
+Run the script every 5 minutes.
+
+Edit crontab:
+
+crontab -e
+
+
+Add this line:
+
+*/5 * * * * /full/path/to/github-pr-merged-teams.sh
+
+
+Make sure jq, curl, and bash are available in the cron environment.
+
+✅ Example Output in Teams
+
+You'll see a message like:
+
+🔀 PR Merged: #42 - Fix login bug
+PR #42 merged by alice
+Author: bob
+Merged At: 2025-08-19T12:45:00Z
+
+🧼 Optional Cleanup
+
+You can delete temporary files like merged_prs.json if not needed.
+
+✅ Summary
+Step	Task
+1️⃣	Create a Teams webhook
+2️⃣	Create a GitHub PAT
+3️⃣	Write a shell script that polls GitHub and sends Teams notifications
+4️⃣	Schedule it using cron for automation
